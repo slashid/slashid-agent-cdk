@@ -27,19 +27,20 @@ export function ensureVpcConnectivity(
     peerVpcId: targetVpc.vpcId,
   });
 
-  // Add routes from source VPC to target VPC
-  sourceVpc.publicSubnets.forEach((subnet: ec2.ISubnet, i: number) => {
-    new ec2.CfnRoute(scope, `${id}RoutePublic${i}`, {
-      routeTableId: subnet.routeTable.routeTableId,
-      destinationCidrBlock: targetVpc.vpcCidrBlock,
-      vpcPeeringConnectionId: peering.attrId,
-    });
+  // Collect unique route table IDs (multiple subnets may share the same route table)
+  const routeTableIds = new Set<string>();
+  [...sourceVpc.publicSubnets, ...sourceVpc.privateSubnets].forEach((subnet: ec2.ISubnet) => {
+    routeTableIds.add(subnet.routeTable.routeTableId);
   });
-  sourceVpc.privateSubnets.forEach((subnet: ec2.ISubnet, i: number) => {
-    new ec2.CfnRoute(scope, `${id}RoutePrivate${i}`, {
-      routeTableId: subnet.routeTable.routeTableId,
+
+  // Add routes from source VPC to target VPC (one per unique route table)
+  let i = 0;
+  routeTableIds.forEach((routeTableId) => {
+    new ec2.CfnRoute(scope, `${id}Route${i}`, {
+      routeTableId,
       destinationCidrBlock: targetVpc.vpcCidrBlock,
       vpcPeeringConnectionId: peering.attrId,
     });
+    i++;
   });
 }

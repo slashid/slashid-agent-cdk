@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib/core';
+import * as directoryservice from 'aws-cdk-lib/aws-directoryservice';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -22,7 +23,7 @@ const SECRET_PLACEHOLDER = '<secret>';
 /** Default URL for uploading snapshots */
 const DEFAULT_UPLOAD_URL = 'https://api.slashid.com/nhi/snapshots';
 
-export interface SlashidAgentStackProps extends cdk.StackProps {
+export interface SlashidAgentProps {
   logLevel?: 'CRITICAL' | 'FATAL' | 'ERROR' | 'WARNING' | 'INFO' | 'DEBUG';
 
   /**
@@ -37,7 +38,7 @@ export interface SlashidAgentStackProps extends cdk.StackProps {
   containerName?: string;
   /**
    * EC2 instance type.
-   * @default t2.micro
+   * @default t3a.micro
    */
   instanceType?: ec2.InstanceType;
   /**
@@ -52,7 +53,13 @@ export interface SlashidAgentStackProps extends cdk.StackProps {
   vpc?: ec2.IVpc;
 }
 
-export class SlashidAgentStack extends cdk.Stack {
+/**
+ * L3 construct that deploys a SlashID agent on an EC2 instance.
+ *
+ * The agent runs as a Docker container and can connect to PostgreSQL databases
+ * and Active Directory domains to collect identity snapshots.
+ */
+export class SlashidAgent extends Construct {
   private readonly containerEnv: Record<string, string> = {};
   private readonly securityGroup: ec2.SecurityGroup;
   private readonly role: iam.Role;
@@ -64,7 +71,9 @@ export class SlashidAgentStack extends cdk.Stack {
   private readonly peeredVpcIds = new Set<string>();
   private readonly envPrefixCounts = new Map<string, number>();
 
-  constructor(scope: Construct, id: string, props: SlashidAgentStackProps = {}) {
+  constructor(scope: Construct, id: string, props: SlashidAgentProps = {}) {
+    super(scope, id);
+
     const {
       logLevel = 'INFO',
       containerImage = 'slashid/agent',
@@ -72,9 +81,9 @@ export class SlashidAgentStack extends cdk.Stack {
       instanceType = ec2.InstanceType.of(ec2.InstanceClass.T3A, ec2.InstanceSize.MICRO),
       logRetentionDays,
       vpc: vpcProp,
-      ...stackProps
     } = props;
-    super(scope, id, stackProps);
+
+    const stack = cdk.Stack.of(this);
 
     this.containerEnv['LOG_LEVEL'] = logLevel;
 
@@ -119,7 +128,7 @@ export class SlashidAgentStack extends cdk.Stack {
             logging: {
               driver: 'awslogs',
               options: {
-                'awslogs-region': this.region,
+                'awslogs-region': stack.region,
                 'awslogs-group': `/ec2/slashid-agent`,
               },
             },
@@ -151,8 +160,11 @@ docker image prune -f`;
       // Create start script and run it
       writeFile('/opt/start-container.sh', startContainerScript, true),
       '/opt/start-container.sh',
-      // Hourly cron job to check for updates
-      'echo "0 * * * * root /opt/start-container.sh" > /etc/cron.d/container-update'
+      // Install utilities and start crond, then add hourly cron job to check for updates
+      'dnf install -y cronie iputils telnet bind-utils',
+      'systemctl enable crond',
+      'systemctl start crond',
+      'echo "* * * * * root /opt/start-container.sh" > /etc/cron.d/container-update'
     );
 
     // ECS-optimized AMI comes with Docker pre-installed
@@ -170,10 +182,7 @@ docker image prune -f`;
       userDataCausesReplacement: true,
     });
 
-    new cdk.CfnOutput(this, 'ec2Ip', {
-      value: instance.instancePublicIp,
-    });
-    new cdk.CfnOutput(this, 'ec2InstanceId', {
+    new cdk.CfnOutput(this, 'serverInstanceId', {
       value: instance.instanceId,
     });
   }
@@ -182,6 +191,21 @@ docker image prune -f`;
     const count = this.envPrefixCounts.get(prefix) ?? 0
     this.envPrefixCounts.set(prefix, count + 1)
     return `${prefix}_${count + 1}_`
+  }
+
+  private setUploadConfig(envPrefix: string, config: UploadConfig): void {
+    this.containerEnv[`${envPrefix}SLASHID_AUTH_TOKEN`] = config.slashid_auth_token;
+    this.containerEnv[`${envPrefix}UPLOAD_URL`] = config.upload_url ?? DEFAULT_UPLOAD_URL;
+    if (config.upload_interval !== undefined) {
+      this.containerEnv[`${envPrefix}UPLOAD_INTERVAL`] = config.upload_interval.toString();
+    }
+    if (config.max_consecutive_failures !== undefined) {
+      this.containerEnv[`${envPrefix}MAX_CONSECUTIVE_FAILURES`] = config.max_consecutive_failures.toString();
+    }
+    if (config.max_backoff_interval !== undefined) {
+      this.containerEnv[`${envPrefix}MAX_BACKOFF_INTERVAL`] = config.max_backoff_interval.toString();
+    }
+    this.containerEnv[`${envPrefix}OUTPUT_DIR`] = `/tmp/slashid-agent/${envPrefix}OUTPUT`;
   }
 
   /**
@@ -196,15 +220,16 @@ docker image prune -f`;
    */
   addPostgres(database: RdsDatabase | PostgresDatabaseInfo, agentConfig: PostgresAgentConfig): this {
     const envPrefix = this.createEnvPrefix("PSQL")
+    const stack = cdk.Stack.of(this);
 
     if ('vpc' in database) { // Is an RDS Database
       const endpoint = 'clusterEndpoint' in database ? database.clusterEndpoint : database.instanceEndpoint;
 
       // Set up VPC peering if needed
-      ensureVpcConnectivity(this, this.vpc, database.vpc, 'Postgres', this.peeredVpcIds);
+      ensureVpcConnectivity(this, this.vpc, database.vpc, envPrefix, this.peeredVpcIds);
 
       // Allow the EC2 instance to connect to the database
-      if (cdk.Stack.of(database) === this) {
+      if (cdk.Stack.of(database) === stack) {
         // Same stack - safe to use security group reference
         database.connections.allowFrom(this.securityGroup, ec2.Port.tcp(endpoint.port), 'Allow PostgreSQL access from slashid-agent');
       } else {
@@ -218,14 +243,13 @@ docker image prune -f`;
         secret.grantRead(this.role);
         // Fetch credentials from Secrets Manager and write to secrets file
         this.fetchSecretsScript.push(
-          `SECRET=$(aws secretsmanager get-secret-value --secret-id ${secret.secretArn} --query SecretString --output text --region ${this.region})`,
+          `SECRET=$(aws secretsmanager get-secret-value --secret-id ${secret.secretArn} --query SecretString --output text --region ${stack.region})`,
           `echo "${envPrefix}HOST=$(echo $SECRET | jq -r .host)" >> /run/secrets.env`,
           `echo "${envPrefix}PORT=$(echo $SECRET | jq -r .port)" >> /run/secrets.env`,
           `echo "${envPrefix}DBNAME=$(echo $SECRET | jq -r .dbname)" >> /run/secrets.env`,
           `echo "${envPrefix}USERNAME=$(echo $SECRET | jq -r .username)" >> /run/secrets.env`,
           `echo "${envPrefix}PASSWORD=$(echo $SECRET | jq -r .password)" >> /run/secrets.env`,
         );
-        console.log(this.fetchSecretsScript)
       }
 
       database = {
@@ -241,45 +265,93 @@ docker image prune -f`;
     // Add database connection info to environment
     this.containerEnv[`${envPrefix}HOST`] = database.host
     this.containerEnv[`${envPrefix}PORT`] = database.port.toString();
-    if (database.use_ssl !== undefined) {
-      this.containerEnv[`${envPrefix}USE_SSL`] = database.use_ssl ? 'true' : 'false';
-    }
+    this.containerEnv[`${envPrefix}USE_SSL`] = database.use_ssl ? 'true' : 'false';
     this.containerEnv[`${envPrefix}DBNAME`] = database.dbname;
     this.containerEnv[`${envPrefix}USERNAME`] = database.username;
     this.containerEnv[`${envPrefix}PASSWORD`] = database.password;
 
-    this.containerEnv[`${envPrefix}SLASHID_AUTH_TOKEN`] = agentConfig.slashid_auth_token;
-    this.containerEnv[`${envPrefix}UPLOAD_URL`] = agentConfig.upload_url ?? DEFAULT_UPLOAD_URL;
     if (agentConfig.fetch_passwords !== undefined) {
       this.containerEnv[`${envPrefix}FETCH_PASSWORDS`] = agentConfig.fetch_passwords ? 'true' : 'false';
     }
-    if (agentConfig.upload_interval !== undefined) {
-      this.containerEnv[`${envPrefix}UPLOAD_INTERVAL`] = agentConfig.upload_interval.toString();
-    }
-    if (agentConfig.max_consecutive_failures !== undefined) {
-      this.containerEnv[`${envPrefix}MAX_CONSECUTIVE_FAILURES`] = agentConfig.max_consecutive_failures.toString();
-    }
-    if (agentConfig.max_backoff_interval !== undefined) {
-      this.containerEnv[`${envPrefix}MAX_BACKOFF_INTERVAL`] = agentConfig.max_backoff_interval.toString();
-    }
-    this.containerEnv[`${envPrefix}OUTPUT_DIR`] = `/tmp/slashid-agent/${envPrefix}OUTPUT`
+    this.setUploadConfig(envPrefix, agentConfig);
 
+    return this;
+  }
+
+  /**
+   * Connect to an Active Directory domain.
+   *
+   * @param ad The AWS Managed Microsoft AD (CfnMicrosoftAD)
+   * @param agentConfig the agent configuration including credentials
+   */
+  addActiveDirectory(ad: directoryservice.CfnMicrosoftAD, agentConfig: ActiveDirectoryAgentConfig): this {
+    const envPrefix = this.createEnvPrefix("AD_SNAPSHOT");
+    const stack = cdk.Stack.of(this);
+
+    // FIXME: Currently doesn't work from a separate VPC
+
+    // Set up VPC connectivity
+    ensureVpcConnectivity(this, this.vpc, agentConfig.vpc, envPrefix, this.peeredVpcIds);
+
+    // Note: AWS Managed Microsoft AD creates its own security group that allows
+    // necessary traffic (LDAP, LDAPS, Kerberos, DNS) from within the VPC automatically.
+    // No additional security group rules are needed when the agent is in the same VPC
+    // or a peered VPC.
+
+    // Grant access to the credentials secret and fetch password at boot time
+    const secret = agentConfig.credentialsSecret;
+    secret.grantRead(this.role);
+    
+    this.fetchSecretsScript.push(
+      `SECRET=$(aws secretsmanager get-secret-value --secret-id ${secret.secretArn} --query SecretString --output text --region ${stack.region})`,
+      `echo "${envPrefix}PASSWORD=$(echo $SECRET | jq -r .Password)" >> /run/secrets.env`,
+    );
+
+    // Add AD connection info to environment
+    this.containerEnv[`${envPrefix}DOMAIN`] = ad.name;
+    this.containerEnv[`${envPrefix}USERNAME`] = "Admin";
+    this.containerEnv[`${envPrefix}PASSWORD`] = SECRET_PLACEHOLDER;
+
+    // In AWS Managed Microsoft AD, the DNS servers are the domain controllers.
+    // Use the first DNS IP address as the target DC.
+    this.containerEnv[`${envPrefix}TARGET_DC`] = cdk.Fn.select(0, ad.attrDnsIpAddresses);
+    // Use the first DNS IP address for FQDN resolution
+    this.containerEnv[`${envPrefix}FQDN_RESOLVER`] = cdk.Fn.select(0, ad.attrDnsIpAddresses);
+
+    // AWS Managed Microsoft AD uses LDAP on port 389 by default.
+    // LDAPS (port 636) requires additional certificate configuration via
+    // AWS Console or AWS::DirectoryService::SimpleLDAPS resource.
+    this.containerEnv[`${envPrefix}LDAPS`] = 'false';
+    this.containerEnv[`${envPrefix}LDAP_PORT`] = '389';
+
+    if (agentConfig.collect_adcs !== undefined) {
+      this.containerEnv[`${envPrefix}COLLECT_ADCS`] = agentConfig.collect_adcs ? 'true' : 'false';
+    }
+    if (agentConfig.collection_method !== undefined) {
+      this.containerEnv[`${envPrefix}COLLECTION_METHOD`] = agentConfig.collection_method;
+    }
+
+    this.containerEnv[`${envPrefix}RUSTHOUND_PATH`] = "/usr/local/bin/rusthound-ce";
+    this.containerEnv[`${envPrefix}OUTPUT_DIR`] = `/tmp/slashid-agent/${envPrefix}OUTPUT`;
+    this.setUploadConfig(envPrefix, agentConfig);
 
     return this;
   }
 }
 
 
-export interface AgentConfig {
+export interface UploadConfig {
   slashid_auth_token: string
-}
 
-export interface PostgresAgentConfig extends AgentConfig {
-  fetch_passwords?: boolean;
   upload_url?: string;
   upload_interval?: number;
+
   max_consecutive_failures?: number;
   max_backoff_interval?: number;
+}
+
+export interface PostgresAgentConfig extends UploadConfig {
+  fetch_passwords?: boolean;
 }
 
 export interface PostgresDatabaseInfo {
@@ -288,5 +360,14 @@ export interface PostgresDatabaseInfo {
   dbname: string
   username: string
   password: string
-  use_ssl?: boolean;
+  use_ssl: boolean;
+}
+
+export interface ActiveDirectoryAgentConfig extends UploadConfig {
+  /** VPC where the AD resides (for VPC peering if needed) */
+  vpc: ec2.IVpc;
+  /** Secret containing AD credentials (must have 'Password' key) */
+  credentialsSecret: secretsmanager.ISecret;
+  collect_adcs?: boolean;
+  collection_method?: "All" | "DCOnly"  // Apparently RustHound-CE only supports these (SharpHound supports more options)
 }
