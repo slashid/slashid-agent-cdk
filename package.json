@@ -9,13 +9,16 @@
     "test": "jest"
   },
   "devDependencies": {
+    "@paulo_raca/cdk-skylight": "^0.0.6",
     "@types/jest": "^30",
     "@types/node": "^20.19.24",
     "aws-cdk-lib": "^2.235.1",
     "constructs": "^10.0.0",
+    "envfile": "^7.1.0",
     "jest": "^30",
     "ts-jest": "^29",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "yaml": "^2.8.2"
   },
   "peerDependencies": {
     "aws-cdk-lib": "^2.235.1",

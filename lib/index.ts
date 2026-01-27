@@ -1,21 +1,18 @@
-// import * as cdk from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+// Main construct
+export { SlashidAgent, SlashidAgentProps } from './slashid-agent';
 
-export interface SlashidAgentCdk2Props {
-  // Define construct properties here
-}
+// Types
+export { StringOrSecret, Credential } from './credentials';
+export { ensureVpcConnectivity } from './vpc-peering';
 
-export class SlashidAgentCdk2 extends Construct {
-
-  constructor(scope: Construct, id: string, props: SlashidAgentCdk2Props = {}) {
-    super(scope, id);
-
-    // Define construct contents here
-
-    // example resource
-    // const queue = new sqs.Queue(this, 'SlashidAgentCdk2Queue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
-  }
-}
+// Config types
+export {
+  UploadConfig,
+  PostgresAgentConfig,
+  PostgresDatabaseInfo,
+  DomainControler,
+  ActiveDirectoryInfo,
+  ActiveDirectorySnapshotCollectorConfig,
+  WMiCollectorConfig,
+  ActiveDirectoryAgentConfig,
+} from './slashid-agent';
