@@ -249,6 +249,11 @@ export class SlashidAgent extends Construct {
     const stack = cdk.Stack.of(this);
 
     if ('vpc' in database) { // Is an RDS Database
+      const engineType = database.engine?.engineType;
+      if (engineType && !engineType.includes('postgres')) {
+        throw new Error(`addPostgres requires a PostgreSQL database, got: ${engineType}`);
+      }
+
       const endpoint = 'clusterEndpoint' in database ? database.clusterEndpoint : database.instanceEndpoint;
 
       // Set up VPC peering if needed
