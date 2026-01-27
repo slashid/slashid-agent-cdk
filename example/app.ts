@@ -9,7 +9,7 @@ const env = { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_
 
 const activeDirectory = new ActiveDirectoryStack(app, 'ActiveDirectorydStack', {
   env,
-  domainName: 'active-directory.aws-cdk.example.com',
+  domainName: 'active-directory.example.com',
   edition: 'Standard',
 });
 

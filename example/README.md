@@ -4,21 +4,17 @@ Example CDK stacks demonstrating how to use the `SlashidAgent` construct.
 
 ## Available Stacks
 
-### SlashidAgentPostgresExample
+### ActiveDirectoryStack
 
-Connects to PostgreSQL databases:
-- RDS Aurora PostgreSQL with automatic credential handling
-- External PostgreSQL with custom credentials from Secrets Manager
+Creates an AWS Managed Microsoft AD for testing.
 
-### SlashidAgentManagedAdExample
+### PostgresStack
 
-Connects to AWS Managed Microsoft AD:
-- Configures snapshot collection with RustHound
-- Configures WMI event streaming
+Creates an RDS Aurora PostgreSQL database for testing.
 
-### SlashidAgentCustomAdExample
+### SlashidAgentStack
 
-Connects to on-premises/custom Active Directory with LDAPS.
+Deploys the SlashID Agent connecting to both the AD and database.
 
 ## Usage
 
@@ -28,16 +24,11 @@ From the repository root:
 npm install
 npm run build
 
-# Synthesize all stacks
+cd example
 npx cdk synth
-
-# Deploy a specific stack
-npx cdk deploy SlashidAgentPostgresExample
+npx cdk deploy --all
 ```
 
 ## Configuration
 
-Before deploying, update `slashid-agent-example-stack.ts`:
-
-1. Replace `'your-slashid-token-here'` with your SlashID API token
-2. Update database hostnames and AD settings as needed
+Before deploying, update `app.ts` with your domain name and database settings as needed.
