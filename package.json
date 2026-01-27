@@ -1,0 +1,24 @@
+{
+  "name": "slashid-agent-cdk-2",
+  "version": "0.1.0",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/jest": "^30",
+    "@types/node": "^20.19.24",
+    "aws-cdk-lib": "^2.235.1",
+    "constructs": "^10.0.0",
+    "jest": "^30",
+    "ts-jest": "^29",
+    "typescript": "~5.9.3"
+  },
+  "peerDependencies": {
+    "aws-cdk-lib": "^2.235.1",
+    "constructs": "^10.0.0"
+  }
+}
