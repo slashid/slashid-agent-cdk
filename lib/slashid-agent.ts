@@ -49,6 +49,9 @@ export interface SlashidAgentProps {
  * and Active Directory domains to collect identity snapshots.
  */
 export class SlashidAgent extends Construct {
+  /** The EC2 instance running the agent */
+  public readonly server: ec2.Instance;
+
   private readonly containerEnv: Record<string, string> = {};
   private readonly securityGroup: ec2.SecurityGroup;
   private readonly role: iam.Role;
@@ -162,7 +165,7 @@ export class SlashidAgent extends Construct {
       ? ecs.AmiHardwareType.STANDARD
       : ecs.AmiHardwareType.ARM);
 
-    const instance = new ec2.Instance(this, "server", {
+    this.server = new ec2.Instance(this, "server", {
       vpc: this.vpc,
       instanceType: instanceType,
       machineImage: ami,
@@ -170,10 +173,6 @@ export class SlashidAgent extends Construct {
       role: this.role,
       userData: userData,
       userDataCausesReplacement: true,
-    });
-
-    new cdk.CfnOutput(this, 'serverInstanceId', {
-      value: instance.instanceId,
     });
 
     new cdk.CfnOutput(this, 'agentEnv', {
