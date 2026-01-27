@@ -1,6 +1,18 @@
+# Source files (only publish compiled lib/)
+src/
+examples/
+test/
+
+# Build artifacts
 *.ts
 !*.d.ts
+tsconfig.json
+cdk.json
+cdk.out/
+cdk.context.json
+dist/
 
-# CDK asset staging directory
-.cdk.staging
-cdk.out
+# Dev files
+.git/
+.gitignore
+jest.config.js

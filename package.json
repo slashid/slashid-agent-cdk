@@ -1,14 +1,20 @@
 {
-  "name": "slashid-agent",
+  "name": "@slashid/agent-cdk",
   "version": "0.1.0",
-  "bin": {
-    "slashid-agent": "bin/slashid-agent.js"
-  },
+  "description": "CDK constructs for deploying SlashID Agent",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "prepublishOnly": "npm run build && npm test",
+    "example:synth": "npx cdk synth --app 'npx ts-node examples/bin/example-app.ts'",
+    "example:deploy": "npx cdk deploy --app 'npx ts-node examples/bin/example-app.ts'",
+    "example:destroy": "npx cdk destroy --app 'npx ts-node examples/bin/example-app.ts'"
   },
   "devDependencies": {
     "@types/jest": "^30",
@@ -20,9 +26,20 @@
     "typescript": "~5.9.3"
   },
   "dependencies": {
-    "aws-cdk-lib": "^2.235.1",
-    "cdk-skylight": "^1.1.898",
-    "constructs": "^10.0.0",
-    "envfile": "^7.1.0"
+    "@paulo_raca/cdk-skylight": "^0.0.6",
+    "envfile": "^7.1.0",
+    "yaml": "^2.8.2"
+  },
+  "keywords": [
+    "cdk",
+    "aws",
+    "slashid",
+    "identity",
+    "agent"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/slashid/slashid-agent-cdk.git"
   }
 }

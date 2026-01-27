@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/slashid-agent.ts",
+  "app": "npx ts-node --prefer-ts-exts examples/bin/example-app.ts",
   "watch": {
     "include": [
       "**"

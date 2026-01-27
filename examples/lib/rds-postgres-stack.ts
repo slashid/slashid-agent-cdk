@@ -19,30 +19,21 @@ export interface RdsPostgresStackProps extends cdk.StackProps {
 export class RdsPostgresStack extends cdk.Stack {
   /** The RDS database instance */
   public readonly database: rds.DatabaseInstance;
+  /** The VPC where the database is deployed */
+  public readonly vpc: ec2.IVpc;
 
-  constructor(scope: Construct, id: string, props: RdsPostgresStackProps = {}) {
+  constructor(scope: Construct, id: string, props: RdsPostgresStackProps) {
     const { vpc: vpcProp, databaseName = 'postgres', ...stackProps } = props;
     super(scope, id, stackProps);
 
-    const vpc = vpcProp ?? ec2.Vpc.fromLookup(this, 'VPC', { isDefault: true });
-
-    const engine = rds.DatabaseInstanceEngine.postgres({
-      version: rds.PostgresEngineVersion.VER_16,
-    });
-
-    // Allow non-SSL connections (not recommended for production)
-    const parameterGroup = new rds.ParameterGroup(this, 'ParameterGroup', {
-      engine,
-      parameters: {
-        'rds.force_ssl': '0',
-      },
-    });
+    this.vpc = vpcProp ?? ec2.Vpc.fromLookup(this, 'VPC', { isDefault: true });
 
     this.database = new rds.DatabaseInstance(this, 'Database', {
-      engine,
-      parameterGroup,
+      engine: rds.DatabaseInstanceEngine.postgres({
+        version: rds.PostgresEngineVersion.VER_16,
+      }),
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
-      vpc,
+      vpc: this.vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       allocatedStorage: 20,
       maxAllocatedStorage: 20,
@@ -54,6 +45,14 @@ export class RdsPostgresStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'DatabaseEndpoint', {
       value: this.database.dbInstanceEndpointAddress,
+    });
+
+    new cdk.CfnOutput(this, 'DatabasePort', {
+      value: this.database.dbInstanceEndpointPort,
+    });
+
+    new cdk.CfnOutput(this, 'DatabaseSecretArn', {
+      value: this.database.secret!.secretArn,
     });
   }
 }

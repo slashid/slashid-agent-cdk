@@ -1,0 +1,43 @@
+{
+  "vpc-provider:account=851725497009:filter.isDefault=true:region=us-east-2:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-0fc4bd151029a859d",
+    "vpcCidrBlock": "172.31.0.0/16",
+    "ownerAccountId": "851725497009",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "Public",
+        "type": "Public",
+        "subnets": [
+          {
+            "subnetId": "subnet-0aa475ab886dddd69",
+            "cidr": "172.31.0.0/20",
+            "availabilityZone": "us-east-2a",
+            "routeTableId": "rtb-09a55ea303bf6004e"
+          },
+          {
+            "subnetId": "subnet-093c37fd1be8dcdc2",
+            "cidr": "172.31.16.0/20",
+            "availabilityZone": "us-east-2b",
+            "routeTableId": "rtb-09a55ea303bf6004e"
+          },
+          {
+            "subnetId": "subnet-0fa929b6223255d04",
+            "cidr": "172.31.32.0/20",
+            "availabilityZone": "us-east-2c",
+            "routeTableId": "rtb-09a55ea303bf6004e"
+          }
+        ]
+      }
+    ]
+  },
+  "acknowledged-issue-numbers": [
+    34892
+  ],
+  "availability-zones:account=851725497009:region=us-east-2": [
+    "us-east-2a",
+    "us-east-2b",
+    "us-east-2c"
+  ],
+  "ami:account=851725497009:filters.image-type.0=machine:filters.name.0=*Windows_Server-2022-English-Full-Base*:filters.platform.0=windows:filters.state.0=available:region=us-east-2": "ami-045276509c29ffe6f"
+}

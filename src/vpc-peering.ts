@@ -43,4 +43,20 @@ export function ensureVpcConnectivity(
     });
     i++;
   });
+
+  // Add routes from target VPC back to source VPC (for return traffic)
+  const targetRouteTableIds = new Set<string>();
+  [...targetVpc.publicSubnets, ...targetVpc.privateSubnets].forEach((subnet: ec2.ISubnet) => {
+    targetRouteTableIds.add(subnet.routeTable.routeTableId);
+  });
+
+  let j = 0;
+  targetRouteTableIds.forEach((routeTableId) => {
+    new ec2.CfnRoute(scope, `${id}ReturnRoute${j}`, {
+      routeTableId,
+      destinationCidrBlock: sourceVpc.vpcCidrBlock,
+      vpcPeeringConnectionId: peering.attrId,
+    });
+    j++;
+  });
 }
