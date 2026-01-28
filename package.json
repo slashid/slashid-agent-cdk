@@ -8,7 +8,7 @@
     "watch": "tsc -w"
   },
   "devDependencies": {
-    "@paulo_raca/cdk-skylight": "^0.0.6",
+    "@paulo_raca/cdk-skylight": "^0.0.7",
     "@types/node": "^20.19.24",
     "aws-cdk-lib": "^2.235.1",
     "constructs": "^10.0.0",
