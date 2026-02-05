@@ -129,6 +129,7 @@ export class SlashidAgent extends Construct {
     const buildStartScript = () => {
       const lines = [
         '#!/bin/bash',
+        'set -e',
         'cd /opt',
         '> /run/slashid-agent-secrets.env',
         ...this.fetchSecretsCommands,
@@ -142,7 +143,7 @@ export class SlashidAgent extends Construct {
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       // Install utilities and start crond
-      'dnf install -y cronie iputils telnet bind-utils',
+      'dnf install -y cronie iputils telnet bind-utils jq',
       'systemctl enable crond',
       'systemctl start crond',
       // Install Docker Compose plugin (not included in ECS-optimized AMI)
