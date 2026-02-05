@@ -66,7 +66,7 @@ export class SlashidAgent extends Construct {
     const {
       logLevel = 'INFO',
       containerImage = 'slashid/agent',
-      instanceType = ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
+      instanceType = ec2.InstanceType.of(ec2.InstanceClass.T3A, ec2.InstanceSize.MICRO),
       logRetentionDays,
       vpc: vpcProp,
     } = props;
@@ -142,11 +142,15 @@ export class SlashidAgent extends Construct {
     // User data to run the slashid/agent container
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
-      // Install utilities and start crond
-      'dnf install -y cronie iputils telnet bind-utils jq',
+      // Update system, install utilities, Docker, and start crond
+      'dnf update -y',
+      'dnf install -y cronie iputils telnet bind-utils jq docker',
       'systemctl enable crond',
       'systemctl start crond',
-      // Install Docker Compose plugin (not included in ECS-optimized AMI)
+      'systemctl enable docker',
+      'systemctl start docker',
+      'usermod -a -G docker ec2-user',
+      // Install Docker Compose plugin
       'mkdir -p /usr/local/lib/docker/cli-plugins',
       'curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m) -o /usr/local/lib/docker/cli-plugins/docker-compose',
       'chmod +x /usr/local/lib/docker/cli-plugins/docker-compose',
@@ -161,10 +165,13 @@ export class SlashidAgent extends Construct {
       'echo "0 * * * * root /opt/start-slashid-agent.sh" > /etc/cron.d/container-update'
     );
 
-    // ECS-optimized AMI comes with Docker pre-installed
-    const ami = ecs.EcsOptimizedImage.amazonLinux2023(instanceType.architecture === ec2.InstanceArchitecture.X86_64
-      ? ecs.AmiHardwareType.STANDARD
-      : ecs.AmiHardwareType.ARM);
+    // Use standard Amazon Linux 2023 AMI, Docker will be installed via user data
+    const ami = ec2.MachineImage.latestAmazonLinux2023({
+      cpuType: instanceType.architecture === ec2.InstanceArchitecture.X86_64
+        ? ec2.AmazonLinuxCpuType.X86_64
+        : ec2.AmazonLinuxCpuType.ARM_64,
+      cachedInContext: true,
+    });
 
     this.server = new ec2.Instance(this, "server", {
       vpc: this.vpc,
