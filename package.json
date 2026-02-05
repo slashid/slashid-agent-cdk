@@ -1,5 +1,5 @@
 {
-  "name": "slashid-agent-cdk-2",
+  "name": "@slashid/agent-cdk",
   "version": "0.1.0",
   "main": "dist/lib/index.js",
   "types": "dist/lib/index.d.ts",

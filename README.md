@@ -5,7 +5,7 @@ A CDK construct library for deploying [SlashID](https://www.slashid.com/) agents
 ## Installation
 
 ```bash
-npm install slashid-agent-cdk
+npm install @slashid/agent-cdk
 ```
 
 ## Usage
