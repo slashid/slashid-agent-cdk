@@ -13,3 +13,10 @@ export interface Credential {
   username: StringOrSecret
   password: StringOrSecret
 }
+
+export function credentialFromSecret(secret: secretsmanager.ISecret, usernameField: string, passwordField: string): Credential {
+  return {
+    username: { secret, field: usernameField },
+    password: { secret, field: passwordField },
+  };
+}

@@ -11,7 +11,7 @@ import { stringify as stringifyEnv } from 'envfile';
 import { stringify as stringifyYaml } from 'yaml';
 import { ensureVpcConnectivity } from './vpc-peering';
 import { writeFile } from './userdata-utils';
-import { StringOrSecret, Credential } from './credentials';
+import { StringOrSecret, Credential, credentialFromSecret } from './credentials';
 
 /** Default URL for uploading snapshots */
 const DEFAULT_UPLOAD_URL = 'https://api.slashid.com/nhi/snapshots';
@@ -276,10 +276,7 @@ export class SlashidAgent extends Construct {
         host: endpoint.hostname,
         port: endpoint.port,
         dbname: { secret, field: 'dbname' },
-        credential: {
-          username: { secret, field: 'username' },
-          password: { secret, field: 'password' },
-        },
+        credential: credentialFromSecret(secret, 'username', 'password'),
         use_ssl: true,
       }
     }

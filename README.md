@@ -11,7 +11,7 @@ npm install slashid-agent-cdk
 ## Usage
 
 ```typescript
-import { SlashidAgent, StringOrSecret, Credential } from 'slashid-agent-cdk';
+import { SlashidAgent, StringOrSecret, Credential, credentialFromSecret } from 'slashid-agent-cdk';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager'; // Required for StringOrSecret/Credential
 import * as ec2 from 'aws-cdk-lib/aws-ec2'; // Required for IVpc
 import * as rds from 'aws-cdk-lib/aws-rds'; // Required for DatabaseCluster
@@ -107,14 +107,11 @@ agent.addActiveDirectory(
       slashid_auth_token: myCustomAdSnapshotToken,
     },
     wmi: {
-      credential: {
-        username: { secret: myCustomAdWmiCredential, field: "user" },  // User and passwords are fields in a JSON-formatted ISecret
-        password: { secret: myCustomAdWmiCredential, field: "password" },
-      },
+      credential: credentialFromSecret(myCustomAdWmiCredential, "user", "password"),
       slashid_auth_token: myCustomAdWmiToken,
       namespace: "//./root/directory/ldap", // Example WMI config
-    },
-  }
+    },  
+  },
 );
 
 ```

@@ -2,7 +2,7 @@
 export { SlashidAgent, SlashidAgentProps } from './slashid-agent';
 
 // Types
-export { StringOrSecret, Credential } from './credentials';
+export { StringOrSecret, Credential, credentialFromSecret } from './credentials';
 export { ensureVpcConnectivity } from './vpc-peering';
 
 // Config types
