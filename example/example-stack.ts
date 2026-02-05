@@ -3,6 +3,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import { authentication } from '@paulo_raca/cdk-skylight';
 import { Construct } from 'constructs';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { SlashidAgent, credentialFromSecret } from '../lib';
 
 export interface ExampleStackProps extends cdk.StackProps {
@@ -98,21 +99,23 @@ export class ExampleStack extends cdk.Stack {
     });
 
     this.agent.addPostgres(this.database, {
-      slashid_auth_token: '7bf567cfce9431f62c354616c2b67d75b97f3de6bff7d2f9f556f1d33a06eb46', // AWS-CDK-Test-Postgres
+      slashid_auth_token: secretsmanager.Secret.fromSecretNameV2(this, 'PostgresAuthToken', 'AWS-CDK-Test-Postgres'),
     });
 
+    // These are the AD's Admin credentials.
+    // Unfortunately the agent won't actually work because the permissions are not set correctly
     const adCredential = credentialFromSecret(this.activeDirectory.secret, "UserID", "Password");
 
     this.agent.addActiveDirectory(this.activeDirectory.microsoftAD, {
       vpc: this.vpc,
       snapshot: {
         credential: adCredential,
-        slashid_auth_token: '8c038e9c448bdc7f1239048de9825f01bccd62b5ac84fcf232c50eae87764fa1', // AWS-CDK-Test-ActiveDirectory
+        slashid_auth_token: secretsmanager.Secret.fromSecretNameV2(this, 'ADSnapshotAuthToken', 'AWS-CDK-Test-ActiveDirectory'),
         collect_adcs: false,
       },
       wmi: {
         credential: adCredential,
-        slashid_auth_token: '8c038e9c448bdc7f1239048de9825f01bccd62b5ac84fcf232c50eae87764fa1', // AWS-CDK-Test-ActiveDirectory
+        slashid_auth_token: secretsmanager.Secret.fromSecretNameV2(this, 'ADWMIAuthToken', 'AWS-CDK-Test-ActiveDirectory'),
       },
     });
 
