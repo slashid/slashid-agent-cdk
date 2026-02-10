@@ -1,20 +1,19 @@
-# SlashID Agent CDK Examples
+# SlashID Agent CDK Example
 
-Example CDK stacks demonstrating how to use the `SlashidAgent` construct.
+Example CDK stack demonstrating how to use the `SlashidAgent` construct.
 
-## Available Stacks
+## What it deploys
 
-### ActiveDirectoryStack
+- A VPC with 2 availability zones
+- An AWS Managed Microsoft AD (`CfnMicrosoftAD`)
+- An RDS PostgreSQL 16 database (`db.t3a.micro`)
+- A SlashID Agent on EC2 (`t3a.micro`) connected to both the AD and database
 
-Creates an AWS Managed Microsoft AD for testing.
+## Prerequisites
 
-### PostgresStack
-
-Creates an RDS Aurora PostgreSQL database for testing.
-
-### SlashidAgentStack
-
-Deploys the SlashID Agent connecting to both the AD and database.
+- Secrets Manager secrets for the SlashID auth tokens:
+  - `AWS-CDK-Test-Postgres` — token for the PostgreSQL collector
+  - `AWS-CDK-Test-ActiveDirectory` — token for the AD snapshot and WMI collectors
 
 ## Usage
 
@@ -25,10 +24,21 @@ npm install
 npm run build
 
 cd example
-npx cdk synth
-npx cdk deploy --all
+cdk synth
+cdk deploy
 ```
 
 ## Configuration
 
-Before deploying, update `app.ts` with your domain name and database settings as needed.
+Edit `app.ts` to customize the AD domain name, database name, or other settings:
+
+```typescript
+new ExampleStack(app, 'SlashidAgentExampleStack', {
+  env,
+  activeDirectoryDomain: 'active-directory.example.com',
+  activeDirectoryEdition: 'Standard',
+  databaseName: 'my_postgres_db',
+});
+```
+
+All instance types default to `t3a.micro` and can be overridden via `databaseInstanceType` and `agentInstanceType`.

@@ -1,10 +1,10 @@
 import * as cdk from 'aws-cdk-lib/core';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as rds from 'aws-cdk-lib/aws-rds';
-import { authentication } from '@paulo_raca/cdk-skylight';
+import * as directoryservice from 'aws-cdk-lib/aws-directoryservice';
 import { Construct } from 'constructs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import { SlashidAgent, credentialFromSecret } from '../lib';
+import { SlashidAgent, Credential } from '../lib';
 
 export interface ExampleStackProps extends cdk.StackProps {
   /**
@@ -37,7 +37,7 @@ export interface ExampleStackProps extends cdk.StackProps {
 
 export class ExampleStack extends cdk.Stack {
   public readonly vpc: ec2.IVpc;
-  public readonly activeDirectory: authentication.AwsManagedMicrosoftAdR53;
+  public readonly activeDirectory: directoryservice.CfnMicrosoftAD;
   public readonly database: rds.DatabaseInstance;
   public readonly agent: SlashidAgent;
 
@@ -62,11 +62,22 @@ export class ExampleStack extends cdk.Stack {
     // ========================================
     // Active Directory
     // ========================================
-    this.activeDirectory = new authentication.AwsManagedMicrosoftAdR53(this, 'ManagedAD', {
-      vpc: this.vpc,
-      domainName: activeDirectoryDomain,
+    // Create a secret for the AD admin password
+    const adAdminPassword = new secretsmanager.Secret(this, 'AdAdminPassword', {
+      generateSecretString: {
+        passwordLength: 32,
+        excludePunctuation: true,
+      },
+    });
+
+    this.activeDirectory = new directoryservice.CfnMicrosoftAD(this, 'ManagedAD', {
+      name: activeDirectoryDomain,
       edition: activeDirectoryEdition,
-      createWorker: false,
+      vpcSettings: {
+        vpcId: this.vpc.vpcId,
+        subnetIds: this.vpc.privateSubnets.map(subnet => subnet.subnetId),
+      },
+      password: adAdminPassword.secretValue.unsafeUnwrap(), // Pass the generated password
     });
 
     // ========================================
@@ -102,10 +113,14 @@ export class ExampleStack extends cdk.Stack {
     });
 
     // These are the AD's Admin credentials.
-    // Unfortunately the agent won't actually work because the permissions are not set correctly
-    const adCredential = credentialFromSecret(this.activeDirectory.secret, "UserID", "Password");
+    // The CfnMicrosoftAD construct does not automatically create a secret with "UserID" and "Password" fields.
+    // Instead, the admin username is 'Admin' and the password is the secret value itself.
+    const adCredential: Credential = {
+      username: 'Admin',
+      password: adAdminPassword, // Pass the ISecret directly
+    };
 
-    this.agent.addActiveDirectory(this.activeDirectory.microsoftAD, {
+    this.agent.addActiveDirectory(this.activeDirectory, { // Use this.activeDirectory directly
       vpc: this.vpc,
       snapshot: {
         credential: adCredential,
@@ -129,16 +144,16 @@ export class ExampleStack extends cdk.Stack {
 
     // Active Directory
     new cdk.CfnOutput(this, 'ActiveDirectoryId', {
-      value: this.activeDirectory.microsoftAD.ref,
+      value: this.activeDirectory.ref, // Use this.activeDirectory.ref directly
     });
 
     new cdk.CfnOutput(this, 'ActiveDirectoryDomainControllers', {
-      value: cdk.Fn.join(',', this.activeDirectory.microsoftAD.attrDnsIpAddresses),
+      value: cdk.Fn.join(',', this.activeDirectory.attrDnsIpAddresses), // Use this.activeDirectory.attrDnsIpAddresses directly
       description: 'DNS IP addresses for the Active Directory',
     });
 
     new cdk.CfnOutput(this, 'ActiveDirectoryAdminSecretArn', {
-      value: this.activeDirectory.secret.secretArn,
+      value: adAdminPassword.secretArn, // Use the new adAdminPassword secret
       description: 'ARN of the Active Directory admin secret',
     });
 

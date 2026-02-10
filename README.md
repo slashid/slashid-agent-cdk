@@ -132,5 +132,5 @@ See the [example/](example/) directory for complete stack examples.
 ```bash
 cd example
 cdk synth
-cdk deploy --all
+cdk deploy
 ```
