@@ -25,12 +25,12 @@ export interface ExampleStackProps extends cdk.StackProps {
   databaseName?: string;
   /**
    * Instance type for the RDS PostgreSQL database.
-   * @default t4g.micro
+   * @default t3a.micro
    */
   databaseInstanceType?: ec2.InstanceType;
   /**
    * Instance type for the SlashID Agent ECS cluster.
-   * @default t4g.micro
+   * @default t3a.micro
    */
   agentInstanceType?: ec2.InstanceType;
 }
@@ -48,8 +48,8 @@ export class ExampleStack extends cdk.Stack {
       activeDirectoryDomain = 'corp.slashid.local',
       activeDirectoryEdition = 'Standard',
       databaseName = 'postgres',
-      databaseInstanceType = ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
-      agentInstanceType = ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
+      databaseInstanceType = ec2.InstanceType.of(ec2.InstanceClass.T3A, ec2.InstanceSize.MICRO),
+      agentInstanceType = ec2.InstanceType.of(ec2.InstanceClass.T3A, ec2.InstanceSize.MICRO),
     } = props;
 
     // ========================================
@@ -95,7 +95,6 @@ export class ExampleStack extends cdk.Stack {
       instanceType: agentInstanceType,
       logLevel: 'DEBUG',
       logRetentionDays: 1,
-      containerImage: "paulocosta56/test-foobar:latest", //FIXME
     });
 
     this.agent.addPostgres(this.database, {

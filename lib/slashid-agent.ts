@@ -27,7 +27,7 @@ export interface SlashidAgentProps {
   containerImage?: string;
   /**
    * EC2 instance type.
-   * @default t4g.micro
+   * @default t3a.micro
    */
   instanceType?: ec2.InstanceType;
   /**
