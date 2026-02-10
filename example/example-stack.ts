@@ -25,7 +25,7 @@ export interface ExampleStackProps extends cdk.StackProps {
   databaseName?: string;
   /**
    * Instance type for the RDS PostgreSQL database.
-   * @default t3a.micro
+   * @default db.t4g.micro
    */
   databaseInstanceType?: ec2.InstanceType;
   /**
@@ -48,7 +48,7 @@ export class ExampleStack extends cdk.Stack {
       activeDirectoryDomain = 'corp.slashid.local',
       activeDirectoryEdition = 'Standard',
       databaseName = 'postgres',
-      databaseInstanceType = ec2.InstanceType.of(ec2.InstanceClass.T3A, ec2.InstanceSize.MICRO),
+      databaseInstanceType = ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
       agentInstanceType = ec2.InstanceType.of(ec2.InstanceClass.T3A, ec2.InstanceSize.MICRO),
     } = props;
 

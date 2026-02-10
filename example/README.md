@@ -6,7 +6,7 @@ Example CDK stack demonstrating how to use the `SlashidAgent` construct.
 
 - A VPC with 2 availability zones
 - An AWS Managed Microsoft AD (`CfnMicrosoftAD`)
-- An RDS PostgreSQL 16 database (`db.t3a.micro`)
+- An RDS PostgreSQL 16 database (`db.t4g.micro`)
 - A SlashID Agent on EC2 (`t3a.micro`) connected to both the AD and database
 
 ## Prerequisites
@@ -41,4 +41,4 @@ new ExampleStack(app, 'SlashidAgentExampleStack', {
 });
 ```
 
-All instance types default to `t3a.micro` and can be overridden via `databaseInstanceType` and `agentInstanceType`.
+The database defaults to `db.t4g.micro` and the agent EC2 instance to `t3a.micro`. Both can be overridden via `databaseInstanceType` and `agentInstanceType`.
