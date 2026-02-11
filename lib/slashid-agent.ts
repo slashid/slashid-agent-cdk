@@ -1,7 +1,6 @@
 import * as cdk from 'aws-cdk-lib/core';
 import { CfnMicrosoftAD } from 'aws-cdk-lib/aws-directoryservice';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as rds from 'aws-cdk-lib/aws-rds';
@@ -370,7 +369,7 @@ export class SlashidAgent extends Construct {
       }
 
       this.addEnv(`${envPrefix}RUSTHOUND_PATH`, "/usr/local/bin/rusthound-ce");
-      this.setUploadConfig(envPrefix, snapshotConfig);
+      this.setUploadConfig(envPrefix, { ...snapshotConfig, slashid_auth_token: agentConfig.slashid_auth_token });
     }
 
     if (agentConfig.wmi) {
@@ -383,7 +382,7 @@ export class SlashidAgent extends Construct {
         this.addEnv(`${envPrefix}USERNAME`, wmiConfig.credential.username);
         this.addEnv(`${envPrefix}PASSWORD`, wmiConfig.credential.password);
 
-        this.addEnv(`${envPrefix}SLASHID_AUTH_TOKEN`, wmiConfig.slashid_auth_token);
+        this.addEnv(`${envPrefix}SLASHID_AUTH_TOKEN`, agentConfig.slashid_auth_token);
         this.addEnv(`${envPrefix}STREAM_URL`, wmiConfig.stream_url ?? DEFAULT_STREAM_URL);
 
         if (wmiConfig.namespace !== undefined) {
@@ -465,14 +464,13 @@ export interface ActiveDirectoryInfo {
   dnsServers: string[]
 }
 
-export interface ActiveDirectorySnapshotCollectorConfig extends UploadConfig {
+export interface ActiveDirectorySnapshotCollectorConfig extends Omit<UploadConfig, 'slashid_auth_token'> {
   credential: Credential;
   collect_adcs?: boolean;
   collection_method?: "All" | "DCOnly"  // Apparently RustHound-CE only supports these (SharpHound supports more options)
 }
 
 export interface WMiCollectorConfig  {
-  slashid_auth_token: StringOrSecret
   credential: Credential;
   
   /**
@@ -500,6 +498,7 @@ export interface WMiCollectorConfig  {
 }
 
 export interface ActiveDirectoryAgentConfig {
+  slashid_auth_token: StringOrSecret;
   snapshot?: ActiveDirectorySnapshotCollectorConfig;
   wmi ?: WMiCollectorConfig
 }

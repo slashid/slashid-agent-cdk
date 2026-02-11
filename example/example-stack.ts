@@ -29,7 +29,7 @@ export interface ExampleStackProps extends cdk.StackProps {
    */
   databaseInstanceType?: ec2.InstanceType;
   /**
-   * Instance type for the SlashID Agent ECS cluster.
+   * Instance type for the SlashID Agent EC2 instance.
    * @default t3a.micro
    */
   agentInstanceType?: ec2.InstanceType;
@@ -89,11 +89,9 @@ export class ExampleStack extends cdk.Stack {
       }),
       instanceType: databaseInstanceType,
       vpc: this.vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       allocatedStorage: 20,
       maxAllocatedStorage: 20,
       databaseName,
-      publiclyAccessible: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       deletionProtection: false,
     });
@@ -109,27 +107,25 @@ export class ExampleStack extends cdk.Stack {
     });
 
     this.agent.addPostgres(this.database, {
-      slashid_auth_token: secretsmanager.Secret.fromSecretNameV2(this, 'PostgresAuthToken', 'AWS-CDK-Test-Postgres'),
+      slashid_auth_token: secretsmanager.Secret.fromSecretNameV2(this, 'PostgresSlashidAuthToken', 'AWS-CDK-Test-Postgres'),
     });
 
-    // These are the AD's Admin credentials.
-    // The CfnMicrosoftAD construct does not automatically create a secret with "UserID" and "Password" fields.
-    // Instead, the admin username is 'Admin' and the password is the secret value itself.
+    // NOTE: These are the AD's default Admin credentials. In production, you would
+    // create a dedicated service account with appropriate read permissions.
+    // The Admin account won't have the correct permissions for snapshot/WMI collection
+    // out of the box — configuring AD accounts is outside the scope of this example.
     const adCredential: Credential = {
       username: 'Admin',
-      password: adAdminPassword, // Pass the ISecret directly
+      password: adAdminPassword,
     };
 
     this.agent.addActiveDirectory(this.activeDirectory, { // Use this.activeDirectory directly
-      vpc: this.vpc,
+      slashid_auth_token: secretsmanager.Secret.fromSecretNameV2(this, 'ActiveDirectorySlashidAuthToken', 'AWS-CDK-Test-ActiveDirectory'),
       snapshot: {
         credential: adCredential,
-        slashid_auth_token: secretsmanager.Secret.fromSecretNameV2(this, 'ADSnapshotAuthToken', 'AWS-CDK-Test-ActiveDirectory'),
-        collect_adcs: false,
       },
       wmi: {
         credential: adCredential,
-        slashid_auth_token: secretsmanager.Secret.fromSecretNameV2(this, 'ADWMIAuthToken', 'AWS-CDK-Test-ActiveDirectory'),
       },
     });
 
@@ -144,16 +140,16 @@ export class ExampleStack extends cdk.Stack {
 
     // Active Directory
     new cdk.CfnOutput(this, 'ActiveDirectoryId', {
-      value: this.activeDirectory.ref, // Use this.activeDirectory.ref directly
+      value: this.activeDirectory.ref,
     });
 
     new cdk.CfnOutput(this, 'ActiveDirectoryDomainControllers', {
-      value: cdk.Fn.join(',', this.activeDirectory.attrDnsIpAddresses), // Use this.activeDirectory.attrDnsIpAddresses directly
+      value: cdk.Fn.join(',', this.activeDirectory.attrDnsIpAddresses),
       description: 'DNS IP addresses for the Active Directory',
     });
 
     new cdk.CfnOutput(this, 'ActiveDirectoryAdminSecretArn', {
-      value: adAdminPassword.secretArn, // Use the new adAdminPassword secret
+      value: adAdminPassword.secretArn,
       description: 'ARN of the Active Directory admin secret',
     });
 

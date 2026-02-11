@@ -6,7 +6,7 @@ Example CDK stack demonstrating how to use the `SlashidAgent` construct.
 
 - A VPC with 2 availability zones
 - An AWS Managed Microsoft AD (`CfnMicrosoftAD`)
-- An RDS PostgreSQL 16 database (`db.t4g.micro`)
+- An RDS PostgreSQL 16 database (`db.t4g.micro`) in a private subnet
 - A SlashID Agent on EC2 (`t3a.micro`) connected to both the AD and database
 
 ## Prerequisites
