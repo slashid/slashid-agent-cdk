@@ -324,17 +324,12 @@ export class SlashidAgent extends Construct {
   /**
    * Connect to an Active Directory domain.
    *
+   * If the AD is in a different VPC, call {@link linkVpc} first to set up peering.
+   *
    * @param activeDirectory AWS Managed Microsoft AD (CfnMicrosoftAD) or ActiveDirectoryInfo
    * @param agentConfig the agent configuration including credentials
    */
   addActiveDirectory(activeDirectory: CfnMicrosoftAD | ActiveDirectoryInfo, agentConfig: ActiveDirectoryAgentConfig): this {
-    const adPrefix = this.createEnvPrefix("AD")
-
-    // Set up VPC connectivity for AWS Managed AD
-    if (agentConfig.vpc) {
-      this.linkVpc(agentConfig.vpc);
-    }
-
     if ('attrDnsIpAddresses' in activeDirectory) {
       // Convert AWS Managed Microsoft AD to ActiveDirectoryInfo
       // In AWS Managed AD, DNS servers are also the domain controllers
@@ -505,8 +500,6 @@ export interface WMiCollectorConfig  {
 }
 
 export interface ActiveDirectoryAgentConfig {
-  /** VPC where the AD resides (required for AWS Managed AD to set up connectivity) */
-  vpc?: ec2.IVpc;
   snapshot?: ActiveDirectorySnapshotCollectorConfig;
   wmi ?: WMiCollectorConfig
 }
