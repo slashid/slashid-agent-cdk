@@ -11,6 +11,7 @@ import { stringify as stringifyEnv } from 'envfile';
 import { stringify as stringifyYaml } from 'yaml';
 import { ensureVpcConnectivity } from './vpc-peering';
 import { writeFile } from './userdata-utils';
+import { v5 as uuidv5 } from 'uuid';
 import { StringOrSecret, Credential, credentialFromSecret } from './credentials';
 
 /** Default URL for uploading snapshots */
@@ -73,7 +74,11 @@ export class SlashidAgent extends Construct {
 
     const stack = cdk.Stack.of(this);
 
+    const agentInstanceId = uuidv5(`slashid-agent-cdk/${stack.account}/${stack.region}/${this.node.path}`, uuidv5.DNS);
+
     this.addEnv('LOG_LEVEL', logLevel);
+    this.addEnv('STORAGE_BACKEND', 'static');
+    this.addEnv('STORAGE_STATIC_agent_instance_id', agentInstanceId);
 
     // Use provided VPC or look up the default
     this.vpc = vpcProp ?? ec2.Vpc.fromLookup(this, "VPC", { isDefault: true });
