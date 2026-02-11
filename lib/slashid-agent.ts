@@ -245,6 +245,17 @@ export class SlashidAgent extends Construct {
     }
     this.addEnv(`${envPrefix}OUTPUT_DIR`, `/tmp/slashid-agent/${envPrefix}OUTPUT`);
   }
+  
+  /**
+   * Set up VPC peering so the agent can reach resources in another VPC.
+   * Idempotent — calling multiple times with the same VPC is safe.
+   *
+   * @param vpc The target VPC to peer with
+   */
+  linkVpc(vpc: ec2.IVpc): this {
+    ensureVpcConnectivity(this, this.vpc, vpc, `LinkVpc${this.peeredVpcIds.size}`, this.peeredVpcIds);
+    return this;
+  }
 
   /**
    * Connect to an PostgreSQL database.
@@ -269,7 +280,7 @@ export class SlashidAgent extends Construct {
       const endpoint = 'clusterEndpoint' in database ? database.clusterEndpoint : database.instanceEndpoint;
 
       // Set up VPC peering if needed
-      ensureVpcConnectivity(this, this.vpc, database.vpc, envPrefix, this.peeredVpcIds);
+      this.linkVpc(database.vpc);
 
       // Allow the EC2 instance to connect to the database
       if (cdk.Stack.of(database) === stack) {
@@ -321,7 +332,7 @@ export class SlashidAgent extends Construct {
 
     // Set up VPC connectivity for AWS Managed AD
     if (agentConfig.vpc) {
-      ensureVpcConnectivity(this, this.vpc, agentConfig.vpc, adPrefix, this.peeredVpcIds);
+      this.linkVpc(agentConfig.vpc);
     }
 
     if ('attrDnsIpAddresses' in activeDirectory) {
