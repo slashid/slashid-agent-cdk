@@ -36,6 +36,11 @@ export interface SlashidAgentProps {
    */
   logRetentionDays?: logs.RetentionDays;
   /**
+   * Automatically pull the latest container image on every hourly restart.
+   * @default true
+   */
+  selfUpdate?: boolean;
+  /**
    * VPC to deploy into.
    * @default default VPC (looked up at synth time)
    */
@@ -67,6 +72,7 @@ export class SlashidAgent extends Construct {
       logLevel = 'INFO',
       containerImage = 'slashid/agent',
       instanceType = ec2.InstanceType.of(ec2.InstanceClass.T3A, ec2.InstanceSize.MICRO),
+      selfUpdate = true,
       logRetentionDays,
       vpc: vpcProp,
     } = props;
@@ -137,7 +143,7 @@ export class SlashidAgent extends Construct {
         'cd /opt',
         '> /run/slashid-agent-secrets.env',
         ...this.fetchSecretsCommands,
-        'docker compose up -d --pull always',
+        `docker compose up -d --pull ${selfUpdate ? 'always' : 'missing'}`,
         'docker image prune -f',
       ];
       return lines.join('\n');
